@@ -1,0 +1,38 @@
+﻿@model List<TblDistrict>
+@{
+    ViewBag.Title = "District Management";
+}
+
+<h2>District Management</h2>
+<div class="text-center mt-4">
+    <a class="btn btn-outline-primary" href="@Url.Action("DistrictManagement", "Districts")">
+        Add New District
+    </a>
+</div>
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>IsActive</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr data-id="@item.DistictId">
+                <td class="Name">@item.DistictName</td>
+                <td class="IsActive">@item.IsActive</td>
+            </tr>
+        }
+    </tbody>
+</table>
+@using (Html.BeginForm("ExportDistrictsToExcel", "Home", FormMethod.Post, new { style = "display:inline;" }))
+{
+    <button type="submit" class="btn btn-outline-success mb-3">Export to Excel</button>
+}
+
+@section Scripts {
+    <script>
+
+    </script>
+}

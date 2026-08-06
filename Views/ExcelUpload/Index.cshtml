@@ -1,0 +1,21 @@
+﻿@{
+    ViewBag.Title = "Upload Excel File";
+}
+
+<h2>Upload Excel File</h2>
+
+@using (Html.BeginForm("Upload", "ExcelUpload", FormMethod.Post, new { enctype = "multipart/form-data" }))
+{
+    <div class="form-group">
+        <label for="file">Choose Excel File:</label>
+        <input type="file" name="file" class="form-control-file" id="file">
+    </div>
+    <button type="submit" class="btn btn-primary">Upload</button>
+}
+
+@if (ViewBag.Error != null)
+{
+    <div class="alert alert-danger" role="alert">
+        @ViewBag.Error
+    </div>
+}

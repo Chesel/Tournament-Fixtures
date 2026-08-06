@@ -1,0 +1,92 @@
+﻿@model IEnumerable<Tounaent_Fixtures.Models.Gender>
+
+@{
+    ViewBag.Title = "Gender Management";
+}
+
+<h2>Gender Management</h2>
+
+<!-- Gender List Table -->
+<table class="table">
+    <thead>
+        <tr>
+            <th>Gender Name</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var gender in Model)
+        {
+            <tr id="gender-@gender.GenderId">
+                <td class="gender-name" data-id="@gender.GenderId">@gender.GenderName</td>
+                <td>
+                    <button class="btn btn-link edit-gender-btn" data-id="@gender.GenderId">
+                        <i class="fa fa-pencil"></i> Edit
+                    </button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+@using (Html.BeginForm("ExportGenderToExcel", "Home", FormMethod.Post, new { style = "display:inline;" }))
+{
+    <button type="submit" class="btn btn-outline-success mb-3">Export to Excel</button>
+}
+
+<!-- Edit Gender Form (Initially Hidden) -->
+<div id="edit-form-container" class="mt-4" style="display: none;">
+    <h3>Edit Gender</h3>
+    <form id="edit-gender-form">
+        <input type="hidden" id="GenderId" name="GenderId" />
+        <div class="form-group">
+            <label for="GenderName">Gender Name</label>
+            <input type="text" id="GenderName" name="GenderName" class="form-control" />
+        </div>
+        <button type="submit" class="btn btn-success">Save</button>
+        <button type="button" class="btn btn-secondary" id="cancel-edit-btn">Cancel</button>
+    </form>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            $('.edit-gender-btn').click(function () {
+                var genderId = $(this).data('id');
+                var genderName = $('#gender-' + genderId).find('.gender-name').text();
+
+                $('#GenderId').val(genderId);
+                $('#GenderName').val(genderName);
+
+                $('#edit-form-container').show();
+            });
+
+            $('#edit-gender-form').submit(function (e) {
+                e.preventDefault();
+
+                var genderId = $('#GenderId').val();
+                var genderName = $('#GenderName').val();
+
+                $.ajax({
+                    url: '@Url.Action("UpdateGender", "Home")',
+                    type: 'POST',
+                    data: {
+                        GenderId: genderId,
+                        GenderName: genderName
+                    },
+                    success: function (data) {
+                        $('#gender-' + genderId).find('.gender-name').text(genderName);
+                        $('#edit-form-container').hide();
+                    },
+                    error: function () {
+                        alert('There was an error updating the gender.');
+                    }
+                });
+            });
+
+            $('#cancel-edit-btn').click(function () {
+                $('#edit-form-container').hide();
+            });
+        });
+    </script>
+}

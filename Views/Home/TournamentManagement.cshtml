@@ -1,0 +1,46 @@
+﻿@model List<TblTournament>
+@{
+    ViewBag.Title = "Tournament Management";
+}
+
+<h2>Tournament Management</h2>
+<div class="text-center mt-4">
+    <a class="btn btn-outline-primary" href="@Url.Action("TournamentManagement", "Home")">
+        Add New Tournaments
+    </a>
+</div>
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Venue</th>
+            <th>District</th>
+            <th>URL</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr data-id="@item.TournamentId">
+                <td class="name">@item.TournamentName</td>
+                <td class="venue">@item.Venue</td>
+                <td class="district">@item.DistictName</td>
+                <td>
+                    <a href="@item.URL" title="@item.URL" style="word-break: break-all; display: inline-block; max-width: 250px;">
+                        @item.URL
+                    </a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+@using (Html.BeginForm("ExportTournamentsToExcel", "Home", FormMethod.Post, new { style = "display:inline;" }))
+{
+    <button type="submit" class="btn btn-outline-success mb-3">Export to Excel</button>
+}
+
+@section Scripts {
+    <script>
+
+    </script>
+}

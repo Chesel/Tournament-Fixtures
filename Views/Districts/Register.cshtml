@@ -1,0 +1,46 @@
+﻿@model TblDistrict
+
+@{
+    ViewBag.Title = "Register Tournament";
+}
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<h2 class="mb-4 text-center">@ViewBag.Title</h2>
+
+@using (Html.BeginForm("Register", "Districts", FormMethod.Post, new { enctype = "multipart/form-data", @class = "container" }))
+{
+    <div class="row g-4">
+        <div class="col-md-6">
+            @Html.LabelFor(m => m.DistictName, new { @class = "form-label" })
+            @Html.TextBoxFor(m => m.DistictName, new { @class = "form-control" })
+            @Html.ValidationMessageFor(m => m.DistictName, "", new { @class = "text-danger" })
+        </div>
+
+        <div class="col-md-6">
+            <label class="form-label">District</label>
+            @Html.DropDownListFor(m => m.DistictId, Model.StateOptions, "-- Select State --", new { @class = "form-control" })
+            @Html.ValidationMessageFor(m => m.DistictId, "", new { @class = "text-danger" })
+        </div>
+
+        <div class="col-12 text-center">
+            <button type="submit" class="btn btn-success px-5">Save Distict</button>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    @Html.Partial("_ValidationScriptsPartial")
+
+    <script>
+        setTimeout(function () {
+            $(".alert").alert('close');
+        }, 4000);
+    </script>
+}

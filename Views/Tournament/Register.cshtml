@@ -1,0 +1,126 @@
+﻿@model TournamentViewModel
+
+@{
+    ViewBag.Title = "Register Tournament";
+}
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<h2 class="mb-4 text-center">@ViewBag.Title</h2>
+
+@using (Html.BeginForm("Register", "Tournament", FormMethod.Post, new { enctype = "multipart/form-data", @class = "container" }))
+{
+    <div class="row g-4">
+        <div class="col-md-6">
+            @Html.LabelFor(m => m.TournamentName, new { @class = "form-label" })
+            @Html.TextBoxFor(m => m.TournamentName, new { @class = "form-control" })
+            @Html.ValidationMessageFor(m => m.TournamentName, "", new { @class = "text-danger" })
+        </div>
+
+        <div class="col-md-6">
+            @Html.LabelFor(m => m.OrganizedBy, new { @class = "form-label" })
+            @Html.TextBoxFor(m => m.OrganizedBy, new { @class = "form-control" })
+            @Html.ValidationMessageFor(m => m.OrganizedBy, "", new { @class = "text-danger" })
+        </div>
+
+        <div class="col-md-6">
+            @Html.LabelFor(m => m.Venue, new { @class = "form-label" })
+            @Html.TextBoxFor(m => m.Venue, new { @class = "form-control" })
+            @Html.ValidationMessageFor(m => m.Venue, "", new { @class = "text-danger" })
+        </div>
+
+        <div class="col-md-6">
+            <label class="form-label">District</label>
+            @Html.DropDownListFor(m => m.DistictId, Model.DistrictOptions, "-- Select District --", new { @class = "form-control" })
+            @Html.ValidationMessageFor(m => m.DistictId, "", new { @class = "text-danger" })
+        </div>
+
+        <div class="col-md-6">
+            <label class="form-label">From Date</label>
+            @Html.TextBoxFor(m => m.From_dt, "{0:yyyy-MM-dd}", new { type = "date", @class = "form-control" })
+            @Html.ValidationMessageFor(m => m.From_dt, "", new { @class = "text-danger" })
+        </div>
+
+        <div class="col-md-6">
+            <label class="form-label">To Date</label>
+            @Html.TextBoxFor(m => m.To_dt, "{0:yyyy-MM-dd}", new { type = "date", @class = "form-control" })
+            @Html.ValidationMessageFor(m => m.To_dt, "", new { @class = "text-danger" })
+        </div>
+
+        <div class="col-md-6">
+            <!-- NOTE: this reuses DistictId for "Tournament Type" in the original code too -
+                 preserved as-is rather than fixed, since it's a pre-existing quirk, not
+                 something the conversion introduced. -->
+            <label class="form-label">Tournament Type</label>
+            @Html.DropDownListFor(m => m.DistictId, Model.MatchType, "-- Select Tournament Type--", new { @class = "form-control" })
+            @Html.ValidationMessageFor(m => m.DistictId, "", new { @class = "text-danger" })
+        </div>
+
+        <!-- Logo 1 and Preview -->
+        <div class="col-md-6 d-flex align-items-center justify-content-center">
+            <div class="form-group position-relative text-center" style="width: 150px; height: 150px;">
+                <label for="Logo1" style="cursor: pointer; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; border: 2px dashed #ccc; border-radius: 8px;">
+                    <div id="uploadIcon1">
+                        <i class="fas fa-upload fa-2x text-primary"></i>
+                        <div style="font-size: 0.9rem;">Upload Logo 1</div>
+                    </div>
+                    <img id="photoPreview1" src="#" alt="Preview"
+                         style="display:none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 8px;" />
+                </label>
+
+                <input type="file" name="Logo1" id="Logo1" accept="image/*" style="display:none;" onchange="previewPhoto(this, 'photoPreview1', 'uploadIcon1')" />
+                @Html.ValidationMessageFor(m => m.Logo1, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        <!-- Logo 2 and Preview -->
+        <div class="col-md-6 d-flex align-items-center justify-content-center">
+            <div class="form-group position-relative text-center" style="width: 150px; height: 150px;">
+                <label for="Logo2" style="cursor: pointer; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; border: 2px dashed #ccc; border-radius: 8px;">
+                    <div id="uploadIcon2">
+                        <i class="fas fa-upload fa-2x text-primary"></i>
+                        <div style="font-size: 0.9rem;">Upload Logo 2</div>
+                    </div>
+                    <img id="photoPreview2" src="#" alt="Preview"
+                         style="display:none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 8px;" />
+                </label>
+
+                <input type="file" name="Logo2" id="Logo2" accept="image/*" style="display:none;" onchange="previewPhoto(this, 'photoPreview2', 'uploadIcon2')" />
+                @Html.ValidationMessageFor(m => m.Logo2, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        <div class="col-12 text-center">
+            <button type="submit" class="btn btn-success px-5">Register Tournament</button>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    @Html.Partial("_ValidationScriptsPartial")
+
+    <script>
+        function previewPhoto(input, previewId, iconId) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    $("#" + previewId).attr("src", e.target.result).show();
+                    $("#" + iconId).hide();
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // Auto-dismiss success alert
+        setTimeout(function () {
+            $(".alert").alert('close');
+        }, 4000);
+    </script>
+
+}

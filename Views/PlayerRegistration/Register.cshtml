@@ -1,0 +1,433 @@
+﻿@model Tounaent_Fixtures.Models.PlayerViewModel
+
+@{
+    string Title = "Online Registration -" + @ViewData["TournamentName"];
+    if (Model.TournamentId == 16)
+    {
+        Title = Title + " - Thiruvarur (Sub Junior & Cadet)";
+}
+    else if (Model.TournamentId == 17)
+    {
+        Title = Title + " - Thanjavur (Junior & Senior)";
+    }
+    ViewBag.Title = Title;
+    ViewBag.HideNavigation = true;
+}
+
+<!-- First row: Tournament name + date -->
+<div class="text-center mb-2">
+    <h2>@ViewData["TournamentName"]</h2>
+    <h6>Date : @ViewData["Date"]</h6>
+</div>
+
+<!-- Second row: logo1 | venue | logo2 -->
+<div class="d-flex justify-content-between align-items-center mb-2">
+    @if (ViewData["Logo1"] != null)
+    {
+        <img src="@ViewData["Logo1"]" alt="Logo1" style="width: 100px; height: 100px; object-fit: contain;" />
+    }
+    else
+    {
+        <div style="width: 100px;"></div>
+    }
+
+    <div class="text-center flex-fill">
+        <h5>@ViewData["Venue"]</h5>
+    </div>
+
+    @if (ViewData["Logo2"] != null)
+    {
+        <img src="@ViewData["Logo2"]" alt="Logo2" style="width: 100px; height: 100px; object-fit: contain;" />
+    }
+    else
+    {
+        <div style="width: 100px;"></div>
+    }
+</div>
+
+<!-- Third row: Organised by -->
+<div class="text-center mb-4">
+    <h4>Organised by : @ViewData["Organization"]</h4>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <script>
+        window.addEventListener("DOMContentLoaded", function () {
+            const toast = document.createElement("div");
+            toast.className = "toast align-items-center text-bg-success border-0 position-fixed bottom-0 end-0 m-4";
+            toast.setAttribute("role", "alert");
+            toast.setAttribute("aria-live", "assertive");
+            toast.setAttribute("aria-atomic", "true");
+
+            toast.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">
+        @TempData["Success"]
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            `;
+
+            document.body.appendChild(toast);
+            const bsToast = new bootstrap.Toast(toast, { delay: 4000 });
+            bsToast.show();
+        });
+    </script>
+}
+
+@using (Html.BeginForm("Register", "PlayerRegistration", new { token = ViewData["Token"] }, FormMethod.Post, new { enctype = "multipart/form-data", @class = "container" }))
+{
+    @Html.ValidationSummary(false, "", new { @class = "alert alert-danger" })
+    if (Convert.ToString(ViewData["TournamentStatus"]) == "True")
+    {
+        <div class="row g-3">
+            @Html.HiddenFor(m => m.TournamentId)
+
+            <div class="col-md-6">
+                <div class="form-group mb-3">
+                    @Html.LabelFor(m => m.Name, new { @class = "form-label" })
+                    @Html.TextBoxFor(m => m.Name, new { @class = "form-control" })
+                    @Html.ValidationMessageFor(m => m.Name, "", new { @class = "text-danger" })
+                </div>
+
+                <div class="form-group mb-3">
+                    @Html.LabelFor(m => m.FatherName, new { @class = "form-label" })
+                    @Html.TextBoxFor(m => m.FatherName, new { @class = "form-control" })
+                    @Html.ValidationMessageFor(m => m.FatherName, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <!-- Right Column: Photo Upload + Preview -->
+            <div class="col-md-6 d-flex align-items-center justify-content-center">
+                <div class="form-group position-relative text-center" style="width: 150px; height: 150px;">
+                    <!-- Upload Area -->
+                    <label for="photoInput" id="uploadLabel" style="cursor: pointer; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; border: 2px dashed #ccc; border-radius: 8px;">
+                        <div id="uploadIcon">
+                            <i class="fas fa-upload fa-2x text-primary"></i>
+                            <div style="font-size: 0.9rem;">Upload Photo</div>
+                        </div>
+                        <img id="photoPreview" src="#" alt="Preview"
+                             style="display:none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 8px;" />
+                    </label>
+
+                    <!-- Hidden File Input -->
+                    <input type="file" name="PhotoFile" id="photoInput" accept="image/*" style="display:none;" />
+                    @Html.ValidationMessageFor(m => m.PhotoFile, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <!-- Gender -->
+            <div class="col-md-6">
+                <label class="form-label">Gender</label>
+                @foreach (var gender in Model.GenderOptions.Where(g => g.Value == "1" || g.Value == "2"))
+                {
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input gender-radio" type="radio" name="GenderId" value="@gender.Value" id="gender_@gender.Value"
+                               checked="@(Model.GenderId.ToString() == gender.Value ? "checked" : null)" />
+                        <label class="form-check-label" for="gender_@gender.Value">@gender.Text</label>
+                    </div>
+                }
+                @Html.ValidationMessageFor(m => m.GenderId, "", new { @class = "text-danger" })
+            </div>
+
+            <!-- DOB -->
+            <div class="col-md-6">
+                <div class="d-flex align-items-center">
+                    <label for="dob" class="form-label me-2 mb-0" style="min-width: 120px;">Date of Birth</label>
+                    @if (Model.TournamentId == 16)
+                    {
+                        <input id="dob" name="Dob" class="form-control" type="date" value="@DateTime.Today.ToString("yyyy-MM-dd")"
+                               min="2011-01-01" max="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                        @Html.ValidationMessageFor(m => m.Dob, "", new { @class = "text-danger" })
+                    }
+                    else if (Model.TournamentId == 17)
+                    {
+                        <input id="dob" name="Dob" class="form-control" type="date" value="@DateTime.Today.ToString("yyyy-MM-dd")"
+                               max="2010-12-31" />
+                        @Html.ValidationMessageFor(m => m.Dob, "", new { @class = "text-danger" })
+                    }
+                    else
+                    {
+                        <input id="dob" name="Dob" class="form-control" type="date" value="@DateTime.Today.ToString("yyyy-MM-dd")"
+                               max="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                        @Html.ValidationMessageFor(m => m.Dob, "", new { @class = "text-danger" })
+                    }
+                </div>
+            </div>
+
+            <!-- Category -->
+            <div class="col-md-6">
+                <label class="form-label">Category</label>
+                <input type="text" id="categoryName" class="form-control" readonly />
+                <input type="hidden" id="CatId" name="CatId" />
+            </div>
+
+            <!-- Weight Category -->
+            <div class="col-md-6">
+                <label class="form-label">Weight Category</label>
+                <select name="WeightCatId" class="form-control" id="weightCatDropdown">
+                    <option value="">-- Select Weight Category --</option>
+                </select>
+                @Html.ValidationMessageFor(m => m.WeightCatId, "", new { @class = "text-danger" })
+            </div>
+            <div class="mb-3" id="weightField" style="display: none;">
+                <label class="form-label">Weight</label>
+                @Html.TextBoxFor(m => m.weight, new { @class = "form-control", id = "weight" })
+                @Html.ValidationMessageFor(m => m.weight, "", new { @class = "text-danger" })
+            </div>
+
+            <!-- District (readonly) -->
+            <div class="col-md-6">
+                <label class="form-label">District</label>
+
+                @if (Model.MatchType == "State")
+                {
+                    <select name="DistictId" class="form-control" id="districtDropdown">
+                        <option value="">-- Select District --</option>
+                        @foreach (var District in Model.DistrictOptions)
+                        {
+                            <option value="@District.Value">@District.Text</option>
+                        }
+                    </select>
+                }
+                else
+                {
+                    <input type="text" class="form-control" value="@Model.DistrictName" readonly />
+                }
+
+                <input type="hidden" id="districtId" value="@Model.DistictId" />
+            </div>
+
+            <!-- Club Dropdown -->
+            <div class="col-md-6">
+                <label class="form-label">Club Name</label>
+                @if (Model.MatchType == "State")
+                {
+                    @Html.TextBoxFor(m => m.ClubName, new { @class = "form-control" })
+                    @Html.ValidationMessageFor(m => m.ClubName, "", new { @class = "text-danger" })
+                }
+                else
+                {
+                    <select name="ClubId" class="form-control" id="clubDropdown">
+                        <option value="">-- Select Club --</option>
+                        @foreach (var club in Model.ClubOptions)
+                        {
+                            <option value="@club.Value">@club.Text</option>
+                        }
+                    </select>
+                }
+                @Html.ValidationMessageFor(m => m.ClubId, "", new { @class = "text-danger" })
+            </div>
+
+            <div class="col-md-6">
+                @Html.LabelFor(m => m.Address, new { @class = "form-label" })
+                @Html.TextAreaFor(m => m.Address, new { @class = "form-control" })
+            </div>
+            <div class="col-md-6">
+                @Html.LabelFor(m => m.MobileNo, new { @class = "form-label" })
+                @Html.TextBoxFor(m => m.MobileNo, new { @class = "form-control" })
+                @Html.ValidationMessageFor(m => m.MobileNo, "", new { @class = "text-danger" })
+            </div>
+            <div class="form-group">
+                <label for="AdharNumb">Aadhaar Number</label>
+                @Html.TextBoxFor(m => m.AdharNumb, new { @class = "form-control", maxlength = "12" })
+                @Html.ValidationMessageFor(m => m.AdharNumb, "", new { @class = "text-danger" })
+            </div>
+
+            <div class="col-md-6">
+                @Html.LabelFor(m => m.Email, new { @class = "form-label" })
+                @Html.TextBoxFor(m => m.Email, new { @class = "form-control", type = "email", required = "required" })
+                @* @Html.ValidationMessageFor(m => m.Email, "", new { @class = "text-danger" }) *@
+            </div>
+            <div class="col-md-12 text-center">
+                <div id="loader" style="display:none; text-align:center; margin-bottom:10px;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <div>Please wait...</div>
+                </div>
+
+                <div class="col-md-12 text-center">
+                    <button id="registerButton" type="submit" class="btn btn-primary mt-3 px-5">Register</button>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="text-center flex-fill">
+            <h2>Registration Closed. Pls contact Organizing secreatry for further details</h2>
+        </div>
+    }
+    <div>
+        <br />
+        <br />
+        <footer style="text-align: center; padding: 3px; background-color: dodgerblue;color: white;">
+            <p>
+                Copy Right Resevered : TamilNadu Taekwondo Association (Reg)
+            </p>
+        </footer>
+    </div>
+}
+
+@section Scripts {
+    @Html.Partial("_ValidationScriptsPartial")
+    <script>
+        $(document).ready(function () {
+            const toastEl = $('#toast-message');
+            const msg = toastEl.data('message');
+
+            if (msg) {
+                const toast = $('<div class="toast align-items-center text-bg-success border-0 position-fixed bottom-0 end-0 m-4" role="alert" aria-live="assertive" aria-atomic="true">' +
+                    '<div class="d-flex"><div class="toast-body">' + msg +
+                    '</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button></div></div>');
+
+                $('body').append(toast);
+                toast.toast({ delay: 4000 });
+                toast.toast('show');
+            }
+        });
+    </script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const form = document.querySelector("form");
+            const loader = document.getElementById("loader");
+            const registerButton = document.getElementById("registerButton");
+
+            if (form) {
+                form.addEventListener("submit", function (e) {
+                    if ($(form).valid && !$(form).valid()) {
+                        e.preventDefault();
+                        return false;
+                    }
+
+                    loader.style.display = "block";
+                    registerButton.disabled = true;
+                    registerButton.innerText = "Registering...";
+                });
+            }
+        });
+    </script>
+    <script>
+        // Photo Preview Logic
+        function previewPhoto(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    $("#photoPreview").attr("src", e.target.result).show();
+                    $("#uploadIcon").hide();
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // Calculate Age from DOB
+        function calculateAge(dob) {
+            const birthDate = new Date(dob);
+            const today = new Date();
+            let age = today.getFullYear() - birthDate.getFullYear();
+
+            return age;
+        }
+
+        // Fetch Category + Weight Category based on gender and DOB
+        function fetchCategoryAndWeight() {
+            const genderId = $("input[name='GenderId']:checked").val();
+            const dob = $("#dob").val();
+            if (!genderId || !dob) return;
+
+            const age = calculateAge(dob);
+
+            $.ajax({
+                url: '/PlayerRegistration/GetCategoryByGenderAndAge',
+                type: 'GET',
+                data: { genderId, age },
+                success: function (data) {
+                    if (data && data.categoryName) {
+                        $("#categoryName").val(data.categoryName);
+                        $("#CatId").val(data.catId);
+                        fetchWeightCategories(data.catId);
+
+                        const category = data.categoryName.toLowerCase();
+                        if (category === 'kids' || category === 'peewee') {
+                            $('#weightField').show();
+                        } else {
+                            $('#weightField').hide();
+                            $('#weight').val('');
+                        }
+
+                    } else {
+                        $("#categoryName").val("No category found");
+                        $("#CatId").val("");
+                        $("#weightCatDropdown").empty().append('<option value="">-- Select Weight Category --</option>');
+                        $('#weightField').hide();
+                        $('#weight').val('');
+                    }
+                },
+                error: function (xhr) {
+                    console.error("Category fetch error:", xhr.responseText);
+                    alert("Failed to load category.");
+                }
+            });
+        }
+
+        // Fetch Weight Categories for given Category
+        function fetchWeightCategories(catId) {
+            if (!catId) return;
+
+            $.ajax({
+                url: '/PlayerRegistration/GetWeightCategoriesByCategory',
+                type: 'GET',
+                data: { catId },
+                success: function (weights) {
+                    const dropdown = $("#weightCatDropdown");
+                    dropdown.empty().append('<option value="">-- Select Weight Category --</option>');
+                    $.each(weights, function (i, item) {
+                        dropdown.append(`<option value="${item.value}">${item.text}</option>`);
+                    });
+                },
+                error: function (xhr) {
+                    console.error("Weight category error:", xhr.responseText);
+                    alert("Failed to load weight categories.");
+                }
+            });
+        }
+
+        // Fetch Clubs by District on load
+        function fetchClubsByDistrict() {
+            const districtId = $("#districtId").val();
+            if (!districtId) return;
+
+            $.ajax({
+                url: '/PlayerRegistration/GetClubsByDistrict',
+                type: 'GET',
+                data: { districtId },
+                success: function (clubs) {
+                    const dropdown = $("#clubDropdown");
+                    dropdown.empty().append('<option value="">-- Select Club --</option>');
+                    $.each(clubs, function (i, club) {
+                        dropdown.append(`<option value="${club.value}">${club.text}</option>`);
+                    });
+                },
+                error: function (xhr) {
+                    console.error("Club fetch error:", xhr.responseText);
+                    alert("Failed to load clubs.");
+                }
+            });
+        }
+
+        // Document Ready Hook
+        $(document).ready(function () {
+            $("#photoInput").on("change", function () {
+                previewPhoto(this);
+            });
+
+            $(".gender-radio").on("change", fetchCategoryAndWeight);
+            $("#dob").on("change", fetchCategoryAndWeight);
+
+            fetchClubsByDistrict();
+        });
+    </script>
+
+}

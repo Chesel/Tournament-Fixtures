@@ -1,0 +1,43 @@
+﻿@model dynamic
+@{
+    ViewBag.Title = "Excel Data";
+    string viewName = TempData["ViewName"] as string;
+}
+
+<h2>Uploaded Excel Data</h2>
+
+@if (Model.Count > 0)
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>S.No</th>
+                <th>Student Name</th>
+                <th>Team</th>
+                <th>Weight</th>
+                <th>Height</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td>@item.Sno</td>
+                    <td>@item.StudentName</td>
+                    <td>@item.Team</td>
+                    <td>@item.Weight</td>
+                    <td>@item.Height</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    @using (Html.BeginForm("NavigateToView", "ExcelUpload", FormMethod.Post))
+    {
+        <input type="hidden" name="viewName" value="@viewName" />
+        <button type="submit" class="btn btn-primary">Go to View</button>
+    }
+}
+else
+{
+    <p>No data found.</p>
+}

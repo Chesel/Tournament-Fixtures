@@ -1,0 +1,110 @@
+﻿@model List<PlayerExportViewModel>
+@{
+    ViewBag.Title = "Player Management";
+    var selectedTournament = ViewBag.SelectedTournament?.ToString();
+    var tournaments = ViewBag.Tournaments as List<SelectListItem>;
+    var selecteddistricts = ViewBag.SelectedDistrict?.ToString();
+    var districts = ViewBag.Districts as List<SelectListItem>;
+}
+
+<h2>Player Management</h2>
+
+@using (Html.BeginForm("PlayerManagement", "Home", FormMethod.Get, new { @class = "mb-3" }))
+{
+    <div class="form-group row">
+        <label for="tournamentId" class="col-sm-2 col-form-label">Filter by Tournament:</label>
+        <div class="col-sm-6">
+            <select id="tournamentId" name="tournamentId" class="form-control" onchange="this.form.submit()">
+                <option value="">-- All Tournaments --</option>
+                @foreach (var tournament in tournaments)
+                {
+                    if (tournament.Value == selectedTournament)
+                    {
+                        <option value="@tournament.Value" selected>@tournament.Text</option>
+                    }
+                    else
+                    {
+                        <option value="@tournament.Value">@tournament.Text</option>
+                    }
+                }
+            </select>
+        </div>
+    </div>
+    <div class="form-group row">
+        <label for="districtId" class="col-sm-2 col-form-label">Filter by District:</label>
+        <div class="col-sm-6">
+            <select id="districtId" name="districtId" class="form-control" onchange="this.form.submit()">
+                <option value="">-- All Districts --</option>
+                @foreach (var district in districts)
+                {
+                    if (district.Value == selecteddistricts)
+                    {
+                        <option value="@district.Value" selected>@district.Text</option>
+                    }
+                    else
+                    {
+                        <option value="@district.Value">@district.Text</option>
+                    }
+                }
+            </select>
+        </div>
+    </div>
+}
+
+@using (Html.BeginForm("ExportPlayerToExcel", "Home", FormMethod.Post, new { style = "display:inline;" }))
+{
+    <input type="hidden" name="tournamentId" value="@ViewBag.SelectedTournament" />
+    <input type="hidden" name="districtId" value="@ViewBag.SelectedDistrict" />
+    <button type="submit" class="btn btn-outline-success mb-3">Export to Excel</button>
+}
+
+<table id="playerTable" class="table table-bordered display">
+    <thead class="thead-dark">
+        <tr>
+            <th>Player Name</th>
+            <th>Parent Name</th>
+            <th>Gender</th>
+            <th>Mobile No</th>
+            <th>Email</th>
+            <th>DOB</th>
+            <th>Category</th>
+            <th>Weight Category</th>
+            <th>District</th>
+            <th>Club Name</th>
+            <th>Remarks</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr data-id="@item.TrUserId">
+                <td>@(item.Name ?? "-")</td>
+                <td>@(item.FatherName ?? "-")</td>
+                <td>@(item.Gender ?? "-")</td>
+                <td>@(item.MobileNo ?? "-")</td>
+                <td>@(item.Email ?? "-")</td>
+                <td>@(item.Dob?.ToString("dd-MM-yyyy") ?? "-")</td>
+                <td>@(item.CategoryName ?? "-")</td>
+                <td>@(item.WeighCatName ?? "-")</td>
+                <td>@(item.District ?? "-")</td>
+                <td>@(item.ClubName ?? "-")</td>
+                <td>@(item.Remarks ?? "-")</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+
+    <script>
+        $(document).ready(function () {
+            $('#playerTable').DataTable({
+                "paging": true,
+                "searching": true,
+                "ordering": true
+            });
+        });
+    </script>
+}
