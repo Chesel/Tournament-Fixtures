@@ -14,13 +14,13 @@ using Tounaent_Fixtures;
 
 namespace Tounaent_Fixtures.Controllers
 {
-    public class PlayerRegistration : Controller
+    public class PlayerRegistrationController : Controller
     {
         private readonly AppConfig _config;
         private readonly ApplicationDbContext _context;
         private static readonly object _pdfLock = new object();
 
-        public PlayerRegistration(AppConfig config, ApplicationDbContext context)
+        public PlayerRegistrationController(AppConfig config, ApplicationDbContext context)
         {
             _config = config;
             _context = context;
@@ -124,7 +124,8 @@ namespace Tounaent_Fixtures.Controllers
         public async Task<ActionResult> GetClubsByDistrict(int districtId)
         {
             var clubs = await GetClubsByDistrictInternal(districtId);
-            return Json(clubs, JsonRequestBehavior.AllowGet);
+            var clubsJson = clubs.Select(c => new { value = c.Value, text = c.Text });
+            return Json(clubsJson, JsonRequestBehavior.AllowGet);
         }
 
         private async Task<List<SelectListItem>> GetGendersAsync()
@@ -168,19 +169,19 @@ namespace Tounaent_Fixtures.Controllers
         public async Task<ActionResult> GetWeightCategoriesByCategory(int catId)
         {
             var weights = await _context.TblWeightCategory
-                .Where(w => w.CatId == catId && w.IsActive)
-                .Select(w => new SelectListItem
-                {
-                    Value = w.WeightCatId.ToString(),
-                    Text = w.WeightCatName
-                })
-                .ToListAsync();
+    .Where(w => w.CatId == catId && w.IsActive)
+    .Select(w => new
+    {
+        value = w.WeightCatId.ToString(),
+        text = w.WeightCatName
+    })
+    .ToListAsync();
 
             return Json(weights, JsonRequestBehavior.AllowGet);
         }
 
         [HttpPost]
-        public async Task<ActionResult> Register(PlayerViewModel model, int tr_id)
+        public async Task<ActionResult> Register(PlayerViewModel model, int tr_id=0)
         {
             string token = UrlEncryptionHelper.Encrypt(model.TournamentId.ToString());
 
@@ -214,7 +215,7 @@ namespace Tounaent_Fixtures.Controllers
 
                         model = new PlayerViewModel
                         {
-                            TournamentId = tr_id,
+                            TournamentId = model.TournamentId,
                             GenderOptions = await GetGendersAsync(),
                             MatchType = tournament1.MatchType,
                             DistrictName = tournament1.DistictName,

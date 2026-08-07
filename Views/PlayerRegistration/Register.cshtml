@@ -1,11 +1,10 @@
 ﻿@model Tounaent_Fixtures.Models.PlayerViewModel
-
+    
 @{
-    string Title = "Online Registration -" + @ViewData["TournamentName"];
-    if (Model.TournamentId == 16)
-    {
+    string Title = "Online Registration - " + ViewData["TournamentName"];
+    if (Model.TournamentId == 16) {
         Title = Title + " - Thiruvarur (Sub Junior & Cadet)";
-}
+    }
     else if (Model.TournamentId == 17)
     {
         Title = Title + " - Thanjavur (Junior & Senior)";
@@ -123,8 +122,12 @@
                 @foreach (var gender in Model.GenderOptions.Where(g => g.Value == "1" || g.Value == "2"))
                 {
                     <div class="form-check form-check-inline">
-                        <input class="form-check-input gender-radio" type="radio" name="GenderId" value="@gender.Value" id="gender_@gender.Value"
-                               checked="@(Model.GenderId.ToString() == gender.Value ? "checked" : null)" />
+                        <input class="form-check-input gender-radio"
+                               type="radio"
+                               name="GenderId"
+                               value="@gender.Value"
+                               id="gender_@gender.Value"
+                               @(Model.GenderId.ToString() == gender.Value ? "checked" : "") />
                         <label class="form-check-label" for="gender_@gender.Value">@gender.Text</label>
                     </div>
                 }
@@ -137,19 +140,19 @@
                     <label for="dob" class="form-label me-2 mb-0" style="min-width: 120px;">Date of Birth</label>
                     @if (Model.TournamentId == 16)
                     {
-                        <input id="dob" name="Dob" class="form-control" type="date" value="@DateTime.Today.ToString("yyyy-MM-dd")"
-                               min="2011-01-01" max="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                        <input id="dob" name="Dob" class="form-control" type="date" value="@DateTime.Today.ToString(@"yyyy-MM-dd")"
+                               min="2011-01-01" max="@DateTime.Now.ToString(@"yyyy-MM-dd")" />
                         @Html.ValidationMessageFor(m => m.Dob, "", new { @class = "text-danger" })
                     }
                     else if (Model.TournamentId == 17)
                     {
-                        <input id="dob" name="Dob" class="form-control" type="date" value="@DateTime.Today.ToString("yyyy-MM-dd")"
+                        <input id="dob" name="Dob" class="form-control" type="date" value="@DateTime.Today.ToString(@"yyyy-MM-dd")"
                                max="2010-12-31" />
                         @Html.ValidationMessageFor(m => m.Dob, "", new { @class = "text-danger" })
                     }
                     else
                     {
-                        <input id="dob" name="Dob" class="form-control" type="date" value="@DateTime.Today.ToString("yyyy-MM-dd")"
+                        <input id="dob" name="Dob" class="form-control" type="date" value="@DateTime.Today.ToString(@"yyyy-MM-dd")"
                                max="@DateTime.Now.ToString("yyyy-MM-dd")" />
                         @Html.ValidationMessageFor(m => m.Dob, "", new { @class = "text-danger" })
                     }
