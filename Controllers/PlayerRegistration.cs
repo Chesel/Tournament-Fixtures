@@ -169,19 +169,19 @@ namespace Tounaent_Fixtures.Controllers
         public async Task<ActionResult> GetWeightCategoriesByCategory(int catId)
         {
             var weights = await _context.TblWeightCategory
-    .Where(w => w.CatId == catId && w.IsActive)
-    .Select(w => new
-    {
-        value = w.WeightCatId.ToString(),
-        text = w.WeightCatName
-    })
-    .ToListAsync();
+                .Where(w => w.CatId == catId && w.IsActive)
+                .Select(w => new
+                {
+                    value = w.WeightCatId.ToString(),
+                    text = w.WeightCatName
+                })
+                .ToListAsync();
 
             return Json(weights, JsonRequestBehavior.AllowGet);
         }
 
         [HttpPost]
-        public async Task<ActionResult> Register(PlayerViewModel model, int tr_id=0)
+        public async Task<ActionResult> Register(PlayerViewModel model, int tr_id = 0)
         {
             string token = UrlEncryptionHelper.Encrypt(model.TournamentId.ToString());
 
@@ -339,6 +339,11 @@ namespace Tounaent_Fixtures.Controllers
             }
             catch (System.Data.Entity.Infrastructure.DbUpdateException ex)
             {
+                // Covers DB-level rejections that aren't caught by the app-level checks above -
+                // most likely a unique constraint on AdharNumb (SQL Server only allows one row
+                // with an empty/NULL value in a uniquely-constrained column, so a second blank
+                // Aadhaar submission collides here even though the app-level check above
+                // deliberately skips validation for blank Aadhaar numbers).
                 try
                 {
                     var logPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "App_Data", "registration_errors.log");
@@ -370,13 +375,37 @@ namespace Tounaent_Fixtures.Controllers
             }
 
             string successMessage = "Player registered successfully!";
+
+            byte[] pdfBytes = null;
             try
             {
-                await SendEmailAsync(model.Email, model, tournament.TournamentName, entity.Remarks, weightcategory.WeightCatName);
-                successMessage += " Confirmation email sent.";
+                pdfBytes = GenerateIdCardPdfBytes(model, photoBytes, tournament.Logo1, tournament.Logo2,
+                    weightcategory.WeightCatName, gender.GenderName);
             }
             catch (Exception ex)
             {
+                // PDF generation failing shouldn't block registration or the email - just send
+                // the email without an attachment and log what went wrong.
+                try
+                {
+                    var logPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "App_Data", "pdf_errors.log");
+                    System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(logPath));
+                    System.IO.File.AppendAllText(logPath,
+                        $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] PDF generation failed for {model.Name}: {ex}{Environment.NewLine}{Environment.NewLine}");
+                }
+                catch { }
+            }
+
+            try
+            {
+                await SendEmailAsync(model.Email, model, tournament.TournamentName, entity.Remarks, weightcategory.WeightCatName, pdfBytes);
+                successMessage += pdfBytes != null ? " Confirmation email with ID card sent." : " Confirmation email sent.";
+            }
+            catch (Exception ex)
+            {
+                // Registration itself already succeeded above - a broken email shouldn't undo that.
+                // Log the real error so SMTP problems are actually visible instead of silently
+                // disappearing or crashing the whole request.
                 try
                 {
                     var logPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "App_Data", "email_errors.log");
@@ -384,7 +413,10 @@ namespace Tounaent_Fixtures.Controllers
                     System.IO.File.AppendAllText(logPath,
                         $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Failed to send registration email to {model.Email}: {ex}{Environment.NewLine}{Environment.NewLine}");
                 }
-                catch { }
+                catch
+                {
+                    // If even logging fails, don't let that take down the request either.
+                }
                 successMessage += " (Registration saved, but the confirmation email could not be sent - contact the organizer if you don't receive it.)";
             }
 
@@ -393,12 +425,10 @@ namespace Tounaent_Fixtures.Controllers
             return RedirectToAction("Register", new { token = token });
         }
 
-        // NOTE: this method is dead code (only ever called from a commented-out line), returns
-        // a string despite the "PDF" name, and sends an email as a side effect using a hardcoded
-        // gmail credential + hardcoded recipient. Ported as-is syntactically so nothing is lost,
-        // but it's worth deleting outright or rewriting once you're back in the code - see
-        // MIGRATION_NOTES.md for the credential-rotation note this ties into.
-        private string GenerateIdCardPdf(PlayerViewModel model, byte[] photoBytes, byte[] Logo1, byte[] Logo2,
+        // Renders the ID card as an actual PDF via IronPdf. Previously this method didn't use
+        // IronPdf at all despite the name - it built HTML and emailed it directly, and was never
+        // even called from anywhere. Now it's wired into the real registration flow below.
+        private byte[] GenerateIdCardPdfBytes(PlayerViewModel model, byte[] photoBytes, byte[] Logo1, byte[] Logo2,
             string argWeightCat, string argGender)
         {
             string base64Image = photoBytes != null
@@ -416,7 +446,6 @@ namespace Tounaent_Fixtures.Controllers
   <meta charset=""UTF-8"">
   <title>{ViewData["TournamentName"]}</title>
   <link href=""https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"" rel=""stylesheet"">
-  <script src=""https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js""></script>
   <style>
 	table {{
 	  width: 100%;
@@ -558,25 +587,12 @@ label.checkbox-label {{
 </body>
 </html>";
 
-            string htmlBody = htmlContent;
-
-            MailMessage mail = new MailMessage();
-            mail.From = new MailAddress("tournamentfixtures@gmail.com");
-            mail.To.Add("gopinathbajaj@gmail.com");
-            mail.Subject = "Your Invoice Page";
-            mail.Body = htmlBody;
-            mail.IsBodyHtml = true;
-
-            SmtpClient smtp = new SmtpClient("smtp.gmail.com", 587);
-            smtp.Credentials = new NetworkCredential("tournamentfixtures@gmail.com", _config["EmailSettings:FromPassword"]);
-            smtp.EnableSsl = true;
-
-            smtp.Send(mail);
-
-            return "Siuccess";
+            var renderer = new IronPdf.ChromePdfRenderer();
+            var pdf = renderer.RenderHtmlAsPdf(htmlContent);
+            return pdf.BinaryData;
         }
 
-        private async Task SendEmailAsync(string toEmail, PlayerViewModel model, string tournamentName, string Remarks, string WeighCatName)
+        private async Task SendEmailAsync(string toEmail, PlayerViewModel model, string tournamentName, string Remarks, string WeighCatName, byte[] pdfBytes = null)
         {
             var category = await _context.TblCategory
                 .Where(c => c.CatId == model.CatId && c.IsActive)
@@ -610,6 +626,12 @@ label.checkbox-label {{
                 IsBodyHtml = true
             };
             mailMessage.To.Add(toEmail);
+
+            if (pdfBytes != null)
+            {
+                var attachment = new Attachment(new MemoryStream(pdfBytes), "ID_Card.pdf", "application/pdf");
+                mailMessage.Attachments.Add(attachment);
+            }
 
             await smtpClient.SendMailAsync(mailMessage);
         }
