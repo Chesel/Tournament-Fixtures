@@ -188,7 +188,7 @@ namespace Tounaent_Fixtures.Controllers
             if (!string.IsNullOrWhiteSpace(model.AdharNumb))
             {
                 bool exists = await _context.TblTournamentUserRegs
-                    .AnyAsync(p => p.AdharNumb == model.AdharNumb);
+    .AnyAsync(p => p.AdharNumb == model.AdharNumb && p.TrId == model.TournamentId);
 
                 if (exists)
                 {
@@ -379,8 +379,8 @@ namespace Tounaent_Fixtures.Controllers
             byte[] pdfBytes = null;
             try
             {
-                pdfBytes = GenerateIdCardPdfBytes(model, photoBytes, tournament.Logo1, tournament.Logo2,
-                    weightcategory.WeightCatName, gender.GenderName);
+                //pdfBytes = GenerateIdCardPdfBytes(model, photoBytes, tournament.Logo1, tournament.Logo2,
+                //    weightcategory.WeightCatName, gender.GenderName);
             }
             catch (Exception ex)
             {
@@ -428,168 +428,146 @@ namespace Tounaent_Fixtures.Controllers
         // Renders the ID card as an actual PDF via IronPdf. Previously this method didn't use
         // IronPdf at all despite the name - it built HTML and emailed it directly, and was never
         // even called from anywhere. Now it's wired into the real registration flow below.
+        // Renders the ID card as an actual PDF using iTextSharp-LGPL - free, pure managed C#,
+        // no native dependencies, so nothing that can silently fail on shared hosting the way
+        // native-DLL-based libraries (DinkToPdf, QuestPDF) can. Builds the layout directly via
+        // iTextSharp's own table API rather than parsing HTML/CSS, for predictable output.
         private byte[] GenerateIdCardPdfBytes(PlayerViewModel model, byte[] photoBytes, byte[] Logo1, byte[] Logo2,
             string argWeightCat, string argGender)
         {
-            string base64Image = photoBytes != null
-            ? $"data:image/jpeg;base64,{Convert.ToBase64String(photoBytes)}"
-            : "";
-            string base64ImageLogo1 = Logo1 != null
-                ? $"data:image/jpeg;base64,{Convert.ToBase64String(Logo1)}"
-                : "";
-            string base64ImageLogo2 = Logo2 != null
-                ? $"data:image/jpeg;base64,{Convert.ToBase64String(Logo2)}"
-                : "";
-            var htmlContent = $@"
-	   <html lang=""en"">
-<head>
-  <meta charset=""UTF-8"">
-  <title>{ViewData["TournamentName"]}</title>
-  <link href=""https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"" rel=""stylesheet"">
-  <style>
-	table {{
-	  width: 100%;
-	  border-collapse: collapse;
-	}}
-	table td {{
-	  border: none;
-	  padding: 6px;
-	  vertical-align: top;
-	}}
-	.photo-box {{
-	  border: 1px solid black;
-	  width: 100px;
-	  height: 120px;
-	  text-align: center;
-	  line-height: 120px;
-	  margin-left: auto;
-	}}
-	.form-control {{
-	  border: none;
-	  border-bottom: solid 1px black;
-	  border-radius: 0 !important;
-	}}
-	textarea {{
-	  resize: none;
-	}}
-	input[type=""checkbox""] {{
-  width: 18px;
-  height: 18px;
-  margin-right: 6px;
-  vertical-align: middle;
-  accent-color: #0d6efd;
-}}
-label.checkbox-label {{
-  margin-right: 15px;
-  display: inline-flex;
-  align-items: center;
-  font-weight: normal;
-}}
+            using (var ms = new MemoryStream())
+            {
+                var document = new iTextSharp.text.Document(iTextSharp.text.PageSize.A4, 30, 30, 30, 30);
+                iTextSharp.text.pdf.PdfWriter.GetInstance(document, ms);
+                document.Open();
 
-  </style>
-</head>
-<body>
-<div class=""container my-4"" id=""form-content"">
-  <table>
-	<tr>
-	  <td style=""width: 25%; text-align: center;"">
- {(string.IsNullOrEmpty(base64ImageLogo1) ? "" : $"<img class='photo' src='{base64ImageLogo1}' alt='Photo' height='100px' widht='120px' />")}</td>
-	  <td style=""width: 50%; text-align: center;"">
-		<h4>{ViewData["TournamentName"]}</h4>
-		<p>Date: {Convert.ToString(ViewData["Date"])}</p>
-		<p> {ViewData["Organization"]} </p>
-	  </td>
-	  <td style=""width: 25%; text-align: center;"">
- {(string.IsNullOrEmpty(base64ImageLogo2) ? "" : $"<img class='photo' src='{base64ImageLogo2}' alt='Photo' height='100px' widht='120px' />")}</td>
-	</tr>
-  </table>
+                var titleFont = iTextSharp.text.FontFactory.GetFont(iTextSharp.text.FontFactory.HELVETICA_BOLD, 16);
+                var normalFont = iTextSharp.text.FontFactory.GetFont(iTextSharp.text.FontFactory.HELVETICA, 10);
+                var boldFont = iTextSharp.text.FontFactory.GetFont(iTextSharp.text.FontFactory.HELVETICA_BOLD, 10);
+                var smallFont = iTextSharp.text.FontFactory.GetFont(iTextSharp.text.FontFactory.HELVETICA, 8);
 
-  <p style=""border-top: 2px solid black; border-bottom: 2px solid black; padding: 10px; text-align:center;"">
-	<strong>Organised by:</strong> {ViewData["Organization"]}<br>
-	<strong>Promoted by:</strong> SALEM DISTRICT AMATEUR TAEKWONDO ASSOCIATION (R)<br>
-	<strong>Under the Auspicious of:</strong> TAMILNADU TAEKWONDO ASSOCIATION (R)
-  </p>
+                // --- Header: logo | tournament name/date | logo ---
+                var headerTable = new iTextSharp.text.pdf.PdfPTable(3) { WidthPercentage = 100 };
+                headerTable.SetWidths(new float[] { 1f, 2f, 1f });
 
-  <h5 class=""text-center mt-4"">INDIVIDUAL ENTRY FORM</h5>
+                headerTable.AddCell(BuildLogoCell(Logo1));
 
-  <table class=""mb-3"">
-	<tr>
-	  <td style=""width: 75%""> <strong>GENDER - {model.Gender} </strong>
-		
-<br>
-		<strong>CATEGORY - {model.CategoryName} </strong>
-<br>
-	  </td>
-	  <td><div class=""photo-box""> {(string.IsNullOrEmpty(base64Image) ? "" : $"<img class='photo' src='{base64Image}' alt='Photo' height='100px' widht='120px' />")}</div></td>
-	</tr>
-  </table>
+                var titleCell = new iTextSharp.text.pdf.PdfPCell
+                {
+                    Border = iTextSharp.text.Rectangle.NO_BORDER,
+                    HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER
+                };
+                titleCell.AddElement(new iTextSharp.text.Paragraph(Convert.ToString(ViewData["TournamentName"]), titleFont) { Alignment = iTextSharp.text.Element.ALIGN_CENTER });
+                titleCell.AddElement(new iTextSharp.text.Paragraph("Date: " + Convert.ToString(ViewData["Date"]), normalFont) { Alignment = iTextSharp.text.Element.ALIGN_CENTER });
+                titleCell.AddElement(new iTextSharp.text.Paragraph(Convert.ToString(ViewData["Organization"]), normalFont) { Alignment = iTextSharp.text.Element.ALIGN_CENTER });
+                headerTable.AddCell(titleCell);
 
-  <table>
-	<tr>
-	  <td>Weight Category</td>
-	  <td><input type=""text"" class=""form-control"" name=""weight_category"" value=""{Convert.ToString(argWeightCat)}""></td>
-	  <td>Weight</td>
-	  <td><input type=""text"" class=""form-control"" name=""weight""></td>
-	</tr>
-	<tr>
-	  <td>Name (in capital letter)</td>
-	  <td colspan=""3""><input type=""text"" class=""form-control"" value=""{Convert.ToString(model.Name)}""></td>
-	</tr>
-	<tr>
-	  <td>Date of Birth</td>
-	  <td><input type=""date"" class=""form-control"" name=""dob"" value={Convert.ToString(model.Dob)}></td>
-	  <td>Age</td>
-	  <td><input type=""text"" class=""form-control"" name=""age""></td>
-	</tr>
-	<tr>
-	  <td>Parent / Guardian Name</td>
-	  <td colspan=""3""><input type=""text"" class=""form-control"" value=""{Convert.ToString(model.FatherName)}""></td>
-	</tr>
-	<tr>
-	  <td>Name of the School</td>
-	  <td colspan=""3""><input type=""text"" class=""form-control"" name=""school""></td>
-	</tr>
-	<tr>
-	  <td>Name of the Club</td>
-	  <td colspan=""3""><input type=""text"" class=""form-control"" name=""club"" value=""{Convert.ToString(model.ClubName)}"" ></td>
-	</tr>
-	<tr>
-	  <td>Address</td>
-	  <td colspan=""3""><textarea class=""form-control"" name=""address"">  {Convert.ToString(model.Address)} </textarea></td>
-	</tr>
-	<tr>
-	  <td>Present Belt Grade</td>
-	  <td><input type=""text"" class=""form-control"" name=""belt_grade""></td>
-	  <td>TFI.I.C. No.</td>
-	  <td><input type=""text"" class=""form-control"" name=""tfi_lic_no""></td>
-	</tr>
-  </table>
+                headerTable.AddCell(BuildLogoCell(Logo2));
+                document.Add(headerTable);
 
-  <p class=""fst-italic mt-3"">Copy of Corporation / Municipal / School Date of Birth Certificate should be enclosed compulsorily. (Original Birth Certificate should be produced at the time of Weigh-in).</p>
+                document.Add(new iTextSharp.text.Paragraph(" "));
 
-  <h6><strong>DECLARATION</strong></h6>
-  <p>I, the undersigned do hereby solemnly affirm, declare and confirm for myself, my heirs, executors & administrators that I indemnify the Promoters / Organiser / Sponsors & its Members, Officials, Participants etc., holding myself personally responsible for all damages, injuries or accidents, claims, demands etc., waiving all prerogative rights, whatsoever related to the above set forth event.</p>
+                // --- Organised by / promoted by block ---
+                var orgPara = new iTextSharp.text.Paragraph();
+                orgPara.Add(new iTextSharp.text.Chunk("Organised by: ", boldFont));
+                orgPara.Add(new iTextSharp.text.Chunk(Convert.ToString(ViewData["Organization"]) + "\n", smallFont));
+                orgPara.Add(new iTextSharp.text.Chunk("Promoted by: ", boldFont));
+                orgPara.Add(new iTextSharp.text.Chunk("SALEM DISTRICT AMATEUR TAEKWONDO ASSOCIATION (R)\n", smallFont));
+                orgPara.Add(new iTextSharp.text.Chunk("Under the Auspicious of: ", boldFont));
+                orgPara.Add(new iTextSharp.text.Chunk("TAMILNADU TAEKWONDO ASSOCIATION (R)", smallFont));
+                orgPara.Alignment = iTextSharp.text.Element.ALIGN_CENTER;
+                document.Add(orgPara);
 
-  <table>
-	<tr>
-	  <td>Signature of Parent / Guardian:</td>
-	  <td><input type=""text"" class=""form-control"" name=""guardian_signature""></td>
-	  <td>Signature of Participant:</td>
-	  <td><input type=""text"" class=""form-control"" name=""participant_signature""></td>
-	</tr>
-  </table>
+                document.Add(new iTextSharp.text.Paragraph(" "));
+                document.Add(new iTextSharp.text.Paragraph("INDIVIDUAL ENTRY FORM", titleFont) { Alignment = iTextSharp.text.Element.ALIGN_CENTER });
+                document.Add(new iTextSharp.text.Paragraph(" "));
 
-  <p class=""text-center mt-5"">
-	Signature of President / Secretary<br>
-	District Club / Organization / Head of the Institution with Seal
-  </p>
-</div>
-</body>
-</html>";
+                // --- Gender/Category + photo ---
+                var genderCatTable = new iTextSharp.text.pdf.PdfPTable(2) { WidthPercentage = 100 };
+                genderCatTable.SetWidths(new float[] { 3f, 1f });
 
-            var renderer = new IronPdf.ChromePdfRenderer();
-            var pdf = renderer.RenderHtmlAsPdf(htmlContent);
-            return pdf.BinaryData;
+                var genderCatCell = new iTextSharp.text.pdf.PdfPCell { Border = iTextSharp.text.Rectangle.NO_BORDER };
+                genderCatCell.AddElement(new iTextSharp.text.Paragraph($"GENDER - {model.Gender}", boldFont));
+                genderCatCell.AddElement(new iTextSharp.text.Paragraph($"CATEGORY - {model.CategoryName}", boldFont));
+                genderCatTable.AddCell(genderCatCell);
+                genderCatTable.AddCell(BuildLogoCell(photoBytes));
+                document.Add(genderCatTable);
+
+                document.Add(new iTextSharp.text.Paragraph(" "));
+
+                // --- Details table ---
+                var detailsTable = new iTextSharp.text.pdf.PdfPTable(4) { WidthPercentage = 100 };
+                detailsTable.SetWidths(new float[] { 1.5f, 2.5f, 1.5f, 2.5f });
+
+                AddDetailRow(detailsTable, "Weight Category", Convert.ToString(argWeightCat), "Weight", "", normalFont, boldFont);
+                AddDetailRow(detailsTable, "Name", Convert.ToString(model.Name), "DOB", model.Dob.ToString("dd-MM-yyyy"), normalFont, boldFont);
+                AddDetailRow(detailsTable, "Parent/Guardian", Convert.ToString(model.FatherName), "Age", "", normalFont, boldFont);
+                AddDetailRow(detailsTable, "Club", Convert.ToString(model.ClubName), "Belt Grade", "", normalFont, boldFont);
+                AddDetailRow(detailsTable, "Address", Convert.ToString(model.Address), "TFI.I.C. No.", "", normalFont, boldFont);
+
+                document.Add(detailsTable);
+
+                document.Add(new iTextSharp.text.Paragraph(" "));
+                document.Add(new iTextSharp.text.Paragraph(
+                    "Copy of Corporation / Municipal / School Date of Birth Certificate should be enclosed compulsorily. " +
+                    "(Original Birth Certificate should be produced at the time of Weigh-in).",
+                    smallFont));
+
+                document.Add(new iTextSharp.text.Paragraph(" "));
+                document.Add(new iTextSharp.text.Paragraph("DECLARATION", boldFont));
+                document.Add(new iTextSharp.text.Paragraph(
+                    "I, the undersigned do hereby solemnly affirm, declare and confirm for myself, my heirs, executors & " +
+                    "administrators that I indemnify the Promoters / Organiser / Sponsors & its Members, Officials, Participants " +
+                    "etc., holding myself personally responsible for all damages, injuries or accidents, claims, demands etc., " +
+                    "waiving all prerogative rights, whatsoever related to the above set forth event.",
+                    smallFont));
+
+                document.Add(new iTextSharp.text.Paragraph(" "));
+                document.Add(new iTextSharp.text.Paragraph(" "));
+                document.Add(new iTextSharp.text.Paragraph("Signature of Parent / Guardian: _______________________     Signature of Participant: _______________________", smallFont));
+
+                document.Add(new iTextSharp.text.Paragraph(" "));
+                document.Add(new iTextSharp.text.Paragraph("Signature of President / Secretary", smallFont) { Alignment = iTextSharp.text.Element.ALIGN_CENTER });
+                document.Add(new iTextSharp.text.Paragraph("District Club / Organization / Head of the Institution with Seal", smallFont) { Alignment = iTextSharp.text.Element.ALIGN_CENTER });
+
+                document.Close();
+                return ms.ToArray();
+            }
+        }
+
+        private iTextSharp.text.pdf.PdfPCell BuildLogoCell(byte[] imageBytes)
+        {
+            var cell = new iTextSharp.text.pdf.PdfPCell
+            {
+                Border = iTextSharp.text.Rectangle.NO_BORDER,
+                HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER,
+                VerticalAlignment = iTextSharp.text.Element.ALIGN_MIDDLE,
+                FixedHeight = 90f
+            };
+            if (imageBytes != null && imageBytes.Length > 0)
+            {
+                try
+                {
+                    var img = iTextSharp.text.Image.GetInstance(imageBytes);
+                    img.ScaleToFit(90f, 90f);
+                    cell.AddElement(img);
+                }
+                catch
+                {
+                    // If the image bytes are somehow invalid, just leave the cell blank rather
+                    // than fail the whole PDF.
+                }
+            }
+            return cell;
+        }
+
+        private void AddDetailRow(iTextSharp.text.pdf.PdfPTable table, string label1, string value1, string label2, string value2,
+            iTextSharp.text.Font normalFont, iTextSharp.text.Font boldFont)
+        {
+            table.AddCell(new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Phrase(label1, boldFont)) { Padding = 4 });
+            table.AddCell(new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Phrase(value1 ?? "", normalFont)) { Padding = 4 });
+            table.AddCell(new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Phrase(label2, boldFont)) { Padding = 4 });
+            table.AddCell(new iTextSharp.text.pdf.PdfPCell(new iTextSharp.text.Phrase(value2 ?? "", normalFont)) { Padding = 4 });
         }
 
         private async Task SendEmailAsync(string toEmail, PlayerViewModel model, string tournamentName, string Remarks, string WeighCatName, byte[] pdfBytes = null)
