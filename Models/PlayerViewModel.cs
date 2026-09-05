@@ -113,7 +113,11 @@ namespace Tounaent_Fixtures.Models
         public DateTime? Dob { get; set; }
         public string? CategoryName { get; set; }
         public string? WeighCatName { get; set; }
+        public int? WeightCatId { get; set; }      // ADD THIS
+
         public string? District { get; set; }
+        public int? DistrictId { get; set; }        // ADD THIS
+
         public string? ClubName { get; set; }
         public string? Address { get; set; }
 

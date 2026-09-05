@@ -58,6 +58,11 @@
     <button type="submit" class="btn btn-outline-success mb-3">Export to Excel</button>
 }
 
+@{
+    var weightCatOptions = ViewBag.WeightCatOptions as List<SelectListItem>;
+    var districtOptionsForEdit = ViewBag.DistrictOptionsForEdit as List<SelectListItem>;
+}
+
 <table id="playerTable" class="table table-bordered display">
     <thead class="thead-dark">
         <tr>
@@ -72,28 +77,67 @@
             <th>District</th>
             <th>Club Name</th>
             <th>Remarks</th>
+            <th>Actions</th>
         </tr>
     </thead>
     <tbody>
         @foreach (var item in Model)
         {
             <tr data-id="@item.TrUserId">
-                <td>@(item.Name ?? "-")</td>
+                <td>
+                    <span class="display-value">@(item.Name ?? "-")</span>
+                    <input type="text" class="form-control form-control-sm edit-input edit-name" style="display:none;" value="@item.Name" />
+                </td>
                 <td>@(item.FatherName ?? "-")</td>
                 <td>@(item.Gender ?? "-")</td>
                 <td>@(item.MobileNo ?? "-")</td>
                 <td>@(item.Email ?? "-")</td>
                 <td>@(item.Dob?.ToString("dd-MM-yyyy") ?? "-")</td>
                 <td>@(item.CategoryName ?? "-")</td>
-                <td>@(item.WeighCatName ?? "-")</td>
-                <td>@(item.District ?? "-")</td>
+                <td>
+                    <span class="display-value">@(item.WeighCatName ?? "-")</span>
+                    <select class="form-control form-control-sm edit-input edit-weightcat" style="display:none;">
+                        @foreach (var w in weightCatOptions)
+                        {
+                            if (w.Value == item.WeightCatId?.ToString())
+                            {
+                                <option value="@w.Value" selected>@w.Text</option>
+                            }
+                            else
+                            {
+                                <option value="@w.Value">@w.Text</option>
+                            }
+                        }
+                    </select>
+                </td>
+                <td>
+                    <span class="display-value">@(item.District ?? "-")</span>
+                    <select class="form-control form-control-sm edit-input edit-district" style="display:none;">
+                        @foreach (var d in districtOptionsForEdit)
+                        {
+                            if (d.Value == item.DistrictId?.ToString())
+                            {
+                                <option value="@d.Value" selected>@d.Text</option>
+                            }
+                            else
+                            {
+                                <option value="@d.Value">@d.Text</option>
+                            }
+                        }
+                    </select>
+                </td>
                 <td>@(item.ClubName ?? "-")</td>
                 <td>@(item.Remarks ?? "-")</td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-outline-primary edit-btn">Edit</button>
+                    <button type="button" class="btn btn-sm btn-success save-btn" style="display:none;">Save</button>
+                    <button type="button" class="btn btn-sm btn-secondary cancel-btn" style="display:none;">Cancel</button>
+                    <button type="button" class="btn btn-sm btn-outline-danger delete-btn">Delete</button>
+                </td>
             </tr>
         }
     </tbody>
 </table>
-
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
@@ -105,6 +149,73 @@
                 "searching": true,
                 "ordering": true
             });
+            $(document).on('click', '.edit-btn', function () {
+    var row = $(this).closest('tr');
+    row.find('.display-value').hide();
+    row.find('.edit-input').show();
+    row.find('.edit-btn').hide();
+    row.find('.save-btn, .cancel-btn').show();
+});
+
+$(document).on('click', '.cancel-btn', function () {
+    var row = $(this).closest('tr');
+    row.find('.edit-input').hide();
+    row.find('.display-value').show();
+    row.find('.save-btn, .cancel-btn').hide();
+    row.find('.edit-btn').show();
+});
+
+$(document).on('click', '.save-btn', function () {
+    var row = $(this).closest('tr');
+    var trUserId = row.data('id');
+    var name = row.find('.edit-name').val();
+    var weightCatId = row.find('.edit-weightcat').val();
+    var districtId = row.find('.edit-district').val();
+
+    $.ajax({
+        url: '@Url.Action("UpdatePlayerInline", "Home")',
+        type: 'POST',
+        data: { trUserId: trUserId, name: name, weightCatId: weightCatId, districtId: districtId },
+        success: function (result) {
+            if (result.success) {
+                row.find('.edit-name').closest('td').find('.display-value').text(result.name);
+                row.find('.edit-weightcat').closest('td').find('.display-value').text(result.weightCatName);
+                row.find('.edit-district').closest('td').find('.display-value').text(result.districtName);
+                row.find('.edit-input').hide();
+                row.find('.display-value').show();
+                row.find('.save-btn, .cancel-btn').hide();
+                row.find('.edit-btn').show();
+            } else {
+                alert(result.message || 'Update failed.');
+            }
+        },
+        error: function () {
+            alert('Failed to save changes.');
+        }
+    });
+});
+
+$(document).on('click', '.delete-btn', function () {
+    if (!confirm('Remove this player?')) return;
+    var row = $(this).closest('tr');
+    var trUserId = row.data('id');
+
+    $.ajax({
+        url: '@Url.Action("DeletePlayerInline", "Home")',
+        type: 'POST',
+        data: { trUserId: trUserId },
+        success: function (result) {
+            if (result.success) {
+                row.fadeOut(300, function () { $(this).remove(); });
+            } else {
+                alert(result.message || 'Delete failed.');
+            }
+        },
+        error: function () {
+            alert('Failed to delete player.');
+        }
+    });
+});
         });
     </script>
 }

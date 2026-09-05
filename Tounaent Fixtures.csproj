@@ -91,6 +91,7 @@
          automatically) - but a glob still covers many files in one line, so this isn't
          one entry per file. -->
     <Compile Include="**\*.cs" Exclude="bin\**;obj\**;Backup\**" />
+    <Compile Include="Models\EditPlayerViewModel.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Web.config" />

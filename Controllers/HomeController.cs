@@ -74,16 +74,75 @@ namespace Tounaent_Fixtures.Controllers
                     Dob = p.Dob,
                     CategoryName = p.CategoryName,
                     WeighCatName = p.WeighCatName,
+                    WeightCatId = p.WeightCatId,      // ADD THIS
                     District = p.District,
+                    DistrictId = p.DistrictId,        // ADD THIS
                     ClubName = p.ClubName,
                     Address = p.Address,
                     Remarks = p.Remarks
                 })
                 .ToListAsync();
 
+            ViewBag.WeightCatOptions = await _context.TblWeightCategory
+    .Where(w => w.IsActive)
+    .Select(w => new SelectListItem { Value = w.WeightCatId.ToString(), Text = w.WeightCatName })
+    .ToListAsync();
+            ViewBag.DistrictOptionsForEdit = await _context.TblDistricts
+                .Where(d => d.IsActive)
+                .Select(d => new SelectListItem { Value = d.DistictId.ToString(), Text = d.DistictName })
+                .ToListAsync();
+
             return View(players);
         }
+        [HttpPost]
+        public async Task<ActionResult> UpdatePlayerInline(int trUserId, string name, int weightCatId, int districtId)
+        {
+            var player = await _context.TblTournamentUserRegs.FindAsync(trUserId);
+            if (player == null)
+            {
+                return Json(new { success = false, message = "Player not found." });
+            }
 
+            var weightCat = await _context.TblWeightCategory.FindAsync(weightCatId);
+            var district = await _context.TblDistricts.FindAsync(districtId);
+
+            player.Name = name;
+            player.WeightCatId = weightCatId;
+            player.WeighCatName = weightCat?.WeightCatName;
+            player.DistrictId = districtId;
+            player.District = district?.DistictName;
+            player.ModifyDt = DateTime.Now;
+            player.ModifyBy = User.Identity?.Name ?? "admin";
+
+            await _context.SaveChangesAsync();
+
+            return Json(new
+            {
+                success = true,
+                name = player.Name,
+                weightCatName = player.WeighCatName,
+                districtName = player.District
+            });
+        }
+
+        [HttpPost]
+        public async Task<ActionResult> DeletePlayerInline(int trUserId)
+        {
+            var player = await _context.TblTournamentUserRegs.FindAsync(trUserId);
+            if (player == null)
+            {
+                return Json(new { success = false, message = "Player not found." });
+            }
+
+            // Soft delete - matches how PlayerManagement already filters (IsActive == true),
+            // so the record stays recoverable rather than being permanently erased.
+            player.IsActive = false;
+            player.ModifyDt = DateTime.Now;
+            player.ModifyBy = User.Identity?.Name ?? "admin";
+            await _context.SaveChangesAsync();
+
+            return Json(new { success = true });
+        }
         public ActionResult Index()
         {
             return View();
